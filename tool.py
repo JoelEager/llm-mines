@@ -7,6 +7,7 @@ import sys
 import os
 import json
 import datetime
+import traceback
 from game_logic import Minefield, random_minefield, GameState, render_concise, render_human
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -206,11 +207,11 @@ def handle_request(request):
                             "properties": {
                                 "x": {
                                     "type": "integer",
-                                    "description": "The X coordinate (0-indexed from top-left)."
+                                    "description": "The X coordinate (0-indexed from left)."
                                 },
                                 "y": {
                                     "type": "integer",
-                                    "description": "The Y coordinate (0-indexed from top-left)."
+                                    "description": "The Y coordinate (0-indexed from top)."
                                 },
                                 "flag": {
                                     "type": "boolean",
@@ -268,6 +269,7 @@ def main():
         try:
             request = json.loads(line)
         except Exception:
+            sys.stderr.write(traceback.format_exc())
             continue
 
         response = handle_request(request)
