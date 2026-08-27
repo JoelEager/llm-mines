@@ -3,12 +3,9 @@ An LM Studio-compatible Model Context Protocol (MCP) tool interface over Standar
 
 ## Features
 - **MCP Tool Protocol**: Exposes `minesweeper_action(x, y, flag)` over stdio.
-- **State Persistence**: Persists active game state in `state.json`. If no game is active, a new game starts automatically.
-- **Configurable Difficulty**: Configured via `config.json`.
+- **State Persistence**: Persists active game state via `state.json` in the repo root. If no game is active a new game starts automatically. *To abandon a game in progress delete this file.*
+- **Configurable Difficulty**: Configured via `config.json` in the repo root.
 - **Logging**: Individual timestamped game logs in `logs/` and end-of-game summary entries in `logs/master.log`.
-
-## Configuration
-The game difficulty can be customized in `config.json` located in the repo root.
 
 ### Using a Preset Difficulty
 - `"easy"`: 8x8 grid with 10 mines
