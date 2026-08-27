@@ -12,7 +12,7 @@ def test_utf8_logging(monkeypatch):
         human = render_human(random_minefield(5, 5, 5))
 
         # Test writing log entry without raising UnicodeEncodeError in non-UTF-8 environments
-        tool.log_action("test_game", "reveal cell at (0, 0)", concise, human, "IN_PROGRESS")
+        tool.log_action("test_game", "reveal cell at (0, 0)", human, "IN_PROGRESS")
         game_log = os.path.join(tmpdir, "test_game.log")
         assert os.path.exists(game_log)
 
@@ -21,7 +21,7 @@ def test_utf8_logging(monkeypatch):
             assert "reveal cell at (0, 0)" in content
 
         # Test master log on game over
-        tool.log_action("test_game", "reveal cell at (0, 0)", concise, human, "WON")
+        tool.log_action("test_game", "reveal cell at (0, 0)", human, "WON")
         master_log = os.path.join(tmpdir, "master.log")
         assert os.path.exists(master_log)
 
