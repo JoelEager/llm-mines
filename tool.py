@@ -26,7 +26,7 @@ DIFFICULTY_PRESETS = {
 def load_config():
     if os.path.exists(CONFIG_PATH):
         try:
-            with open(CONFIG_PATH, "r") as f:
+            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
                 config = json.load(f)
                 return config
         except Exception:
@@ -51,7 +51,7 @@ def get_difficulty_params(config):
 def load_state():
     if os.path.exists(STATE_PATH):
         try:
-            with open(STATE_PATH, "r") as f:
+            with open(STATE_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
                 minefield = Minefield.from_dict(data["minefield"])
                 game_id = data.get("game_id")
@@ -66,7 +66,7 @@ def save_state(minefield, game_id):
         "game_id": game_id,
         "minefield": minefield.to_dict()
     }
-    with open(STATE_PATH, "w") as f:
+    with open(STATE_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
 
 
@@ -91,7 +91,7 @@ def log_action(game_id, action_str, concise_render, human_render, state_name):
         "Human Render:\n{}\n\n"
     ).format(timestamp, action_str, state_name, concise_render, human_render)
 
-    with open(game_log_path, "a") as f:
+    with open(game_log_path, "a", encoding="utf-8") as f:
         f.write(log_entry)
 
     if state_name in ("WON", "LOST"):
@@ -103,7 +103,7 @@ def log_action(game_id, action_str, concise_render, human_render, state_name):
             "Human Render:\n{}\n"
             "----------------------------------------\n\n"
         ).format(game_id, timestamp, state_name, concise_render, human_render)
-        with open(master_log_path, "a") as f:
+        with open(master_log_path, "a", encoding="utf-8") as f:
             f.write(master_entry)
 
 
@@ -114,6 +114,9 @@ def handle_minesweeper_action(arguments):
 
     if x is None or y is None:
         return {"content": [{"type": "text", "text": "Error: Both 'x' and 'y' parameters are required."}], "isError": True}
+
+    if isinstance(x, bool) or isinstance(y, bool) or not isinstance(x, int) or not isinstance(y, int):
+        return {"content": [{"type": "text", "text": "Error: 'x' and 'y' parameters must be integers."}], "isError": True}
 
     minefield, game_id = load_state()
 
@@ -131,7 +134,7 @@ def handle_minesweeper_action(arguments):
             minefield.flag_cell(x, y)
         else:
             minefield.reveal_cell(x, y)
-    except IndexError as e:
+    except (IndexError, TypeError, ValueError) as e:
         return {"content": [{"type": "text", "text": "Error: {}".format(str(e))}], "isError": True}
 
     concise = render_concise(minefield)

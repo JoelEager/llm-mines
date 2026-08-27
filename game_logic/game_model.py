@@ -189,7 +189,7 @@ class Minefield:
             if not recursing:
                 # Check if the game has been won (i.e. all non-mine cells have been revealed)
                 for cell in self.cells:
-                    if not cell.is_mine and cell.state == CellState.UNKNOWN:
+                    if not cell.is_mine and cell.state in (CellState.UNKNOWN, CellState.FLAGGED):
                         return
 
                 self.state = GameState.WON
@@ -211,6 +211,12 @@ def random_minefield(num_mines, width, height):
     """
     :return: A new Minefield instance with a random set of mines.
     """
+    if width < 1 or height < 1:
+        raise ValueError("Grid width and height must be at least 1")
+
+    total_cells = width * height
+    num_mines = max(1, min(num_mines, total_cells - 1))
+
     mines = set()
 
     while len(mines) != num_mines:
