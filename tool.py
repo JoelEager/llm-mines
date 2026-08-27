@@ -8,7 +8,7 @@ import os
 import json
 import datetime
 import traceback
-from game_logic import Minefield, random_minefield, GameState, render_concise, render_human
+from game_logic import random_minefield, GameState, render_concise, render_human
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -23,7 +23,7 @@ CURRENT_MINEFIELD = None
 def init_session():
     os.makedirs(LOGS_DIR, exist_ok=True)
     if not os.path.exists(SESSION_LOG_PATH):
-        with open(SESSION_LOG_PATH, "a", encoding="utf-8") as f:
+        with open(SESSION_LOG_PATH, "a", encoding="utf-8"):
             pass
 
 
@@ -53,24 +53,14 @@ def log_action(action_str, human_render, state_name):
 
     timestamp = datetime.datetime.now().isoformat()
     log_entry = (
-        "=== Action at {} ===\n"
+        "=== {} ===\n"
         "Action: {}\n"
         "State: {}\n"
         "{}\n\n"
     ).format(timestamp, action_str, state_name, human_render)
 
-    session_log_path = os.path.join(LOGS_DIR, SESSION_FILENAME)
-    with open(session_log_path, "a", encoding="utf-8") as f:
+    with open(SESSION_LOG_PATH, "a", encoding="utf-8") as f:
         f.write(log_entry)
-
-    if state_name in ("WON", "LOST"):
-        master_log_path = os.path.join(LOGS_DIR, "master.log")
-        master_entry = (
-            "=== Game Completed at {} ===\n"
-            "{}\n\n"
-        ).format(timestamp, human_render)
-        with open(master_log_path, "a", encoding="utf-8") as f:
-            f.write(master_entry)
 
 
 def handle_minesweeper_action(arguments):
