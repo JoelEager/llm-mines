@@ -4,8 +4,21 @@ A Model Context Protocol (MCP) tool interface over Standard IO (stdio) for playi
 ## Features
 - **MCP Tool Protocol**: Exposes `minesweeper_action(x, y, flag)` over stdio.
 - **In-Memory State**: Active game state is held in memory for the duration of the server process. If no game is active or a game ends, a new game starts automatically on the next action.
-- **Configurable Grid & Mine Count**: Set via `config.json` in the repo root.
-- **Session Logging**: Creates a timestamped session log file in `logs/` whenever the server process starts up, recording all actions for that session.
+- **Configurable Grid & Mine Count**: Defined via constants (`DEFAULT_WIDTH`, `DEFAULT_HEIGHT`, `DEFAULT_MINES`) in `common.py`.
+- **Session Logging**: Creates timestamped session log files (`tool_YYYY-MM-DD_HH-MM.log` or `bedrock_YYYY-MM-DD_HH-MM-SS.log`) in `logs/` recording all actions for that session.
+
+## AWS Bedrock Integration
+The repository includes `bedrock.py` for running Minesweeper games directly using AWS Bedrock Converse API with tool use and thinking trace extraction.
+
+Configuration (model, prompt, grid dimensions, mine count) is set via top-level constants in `bedrock.py`.
+
+### Running Bedrock Script
+Make sure your AWS credentials are set up (e.g. via AWS CLI or environment variables), then run:
+```bash
+python3 bedrock.py
+```
+
+Logs including thinking traces and step-by-step game actions will be saved to `logs/bedrock_YYYY-MM-DD_HH-MM-SS.log`.
 
 ## LM Studio Usage
 To connect this tool to LM Studio via MCP, add the server configuration to your LM Studio MCP settings (`mcp_config.json`):

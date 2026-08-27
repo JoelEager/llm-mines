@@ -1,24 +1,22 @@
 #!/usr/bin/env python3
 """
-AWS Bedrock CLI demo script for Minesweeper MCP.
+AWS Bedrock CLI runner script for Minesweeper MCP.
 Runs a game loop using AWS Bedrock converse API with thinking trace extraction and logging.
 """
 
-import sys
 import os
-import json
 import datetime
-import tool
+import common
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LOGS_DIR = os.path.join(BASE_DIR, "logs")
-
-DEFAULT_MODEL_ID = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
-DEFAULT_PROMPT = (
+MODEL_ID = "us.anthropic.claude-3-5-sonnet-20241022-v2:0"
+PROMPT = (
     "Play a game of Minesweeper using the minesweeper_action tool. "
     "Start by revealing cell (0, 0), then analyze the returned grid board state "
     "to decide your next moves logically until the game is won or lost."
 )
+WIDTH = 8
+HEIGHT = 8
+MINES = 10
 
 MINESWEEPER_TOOL_SPEC = {
     "toolSpec": {
@@ -46,6 +44,8 @@ MINESWEEPER_TOOL_SPEC = {
         }
     }
 }
+
+CURRENT_MINEFIELD = None
 
 
 def extract_thinking_trace(message_content):
@@ -86,37 +86,25 @@ def extract_thinking_trace(message_content):
 
 
 def log_run(log_file_path, timestamp, model_id, prompt, thinking_traces):
-    os.makedirs(LOGS_DIR, exist_ok=True)
+    common.ensure_logs_dir()
     with open(log_file_path, "a", encoding="utf-8") as f:
-        f.write("=== Bedrock Demo Run at {} ===\n".format(timestamp))
-        f.write("Model Name: {}\n".format(model_id))
-        f.write("Initial Prompt: {}\n".format(prompt))
-        f.write("Thinking Traces:\n{}\n".format(thinking_traces if thinking_traces else "None recorded"))
+        f.write(f"=== Bedrock Run at {timestamp} ===\n")
+        f.write(f"Model Name: {model_id}\n")
+        f.write(f"Initial Prompt: {prompt}\n")
+        f.write(f"Thinking Traces:\n{thinking_traces if thinking_traces else 'None recorded'}\n")
         f.write("=" * 40 + "\n\n")
 
 
-def run_bedrock_demo(model_id=None, prompt=None, bedrock_client=None):
-    if not model_id:
-        try:
-            model_input = input("Enter model name [{}]: ".format(DEFAULT_MODEL_ID)).strip()
-        except EOFError:
-            model_input = ""
-        model_id = model_input if model_input else DEFAULT_MODEL_ID
-
-    if not prompt:
-        try:
-            prompt_input = input("Enter initial prompt [{}]: ".format(DEFAULT_PROMPT)).strip()
-        except EOFError:
-            prompt_input = ""
-        prompt = prompt_input if prompt_input else DEFAULT_PROMPT
+def run_bedrock(model_id=MODEL_ID, prompt=PROMPT, bedrock_client=None):
+    global CURRENT_MINEFIELD
 
     if bedrock_client is None:
         import boto3
         bedrock_client = boto3.client("bedrock-runtime")
 
     timestamp = datetime.datetime.now().isoformat()
-    log_filename = "bedrock_demo_{}.log".format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S"))
-    log_file_path = os.path.join(LOGS_DIR, log_filename)
+    log_filename = common.get_log_filename(prefix="bedrock", timestamp_format="%Y-%m-%d_%H-%M-%S")
+    log_file_path = os.path.join(common.LOGS_DIR, log_filename)
 
     messages = [
         {
@@ -127,8 +115,8 @@ def run_bedrock_demo(model_id=None, prompt=None, bedrock_client=None):
 
     all_thinking_traces = []
 
-    print("\nStarting game run with model: {}".format(model_id))
-    print("Prompt: {}\n".format(prompt))
+    print(f"\nStarting game run with model: {model_id}")
+    print(f"Prompt: {prompt}\n")
 
     while True:
         converse_kwargs = {
@@ -146,14 +134,14 @@ def run_bedrock_demo(model_id=None, prompt=None, bedrock_client=None):
         thinking = extract_thinking_trace(content_blocks)
         if thinking:
             all_thinking_traces.append(thinking)
-            print("[Thinking Trace]:\n{}\n".format(thinking))
+            print(f"[Thinking Trace]:\n{thinking}\n")
 
         tool_requests = [b for b in content_blocks if "toolUse" in b]
         text_blocks = [b.get("text") for b in content_blocks if "text" in b]
 
         for tb in text_blocks:
             if tb:
-                print("Model: {}".format(tb))
+                print(f"Model: {tb}")
 
         if not tool_requests:
             break
@@ -165,9 +153,16 @@ def run_bedrock_demo(model_id=None, prompt=None, bedrock_client=None):
             name = tool_use["name"]
             arguments = tool_use.get("input", {})
 
-            print("Tool Call: {}({})".format(name, arguments))
+            print(f"Tool Call: {name}({arguments})")
             if name == "minesweeper_action":
-                res = tool.handle_minesweeper_action(arguments)
+                CURRENT_MINEFIELD, res = common.process_minesweeper_action(
+                    CURRENT_MINEFIELD,
+                    arguments,
+                    width=WIDTH,
+                    height=HEIGHT,
+                    mines=MINES,
+                    log_file_path=log_file_path
+                )
                 tool_result_contents.append({
                     "toolResult": {
                         "toolUseId": tool_use_id,
@@ -178,7 +173,7 @@ def run_bedrock_demo(model_id=None, prompt=None, bedrock_client=None):
                 tool_result_contents.append({
                     "toolResult": {
                         "toolUseId": tool_use_id,
-                        "content": [{"text": "Error: Unknown tool {}".format(name)}],
+                        "content": [{"text": f"Error: Unknown tool {name}"}],
                         "status": "error"
                     }
                 })
@@ -190,18 +185,12 @@ def run_bedrock_demo(model_id=None, prompt=None, bedrock_client=None):
 
     combined_thinking = "\n---\n".join(all_thinking_traces)
     log_run(log_file_path, timestamp, model_id, prompt, combined_thinking)
-    print("\nRun completed! Saved log to {}".format(log_file_path))
+    print(f"\nRun completed! Saved log to {log_file_path}")
     return log_file_path
 
 
 def main():
-    import argparse
-    parser = argparse.ArgumentParser(description="Run Minesweeper Bedrock Demo CLI")
-    parser.add_argument("--model", type=str, help="AWS Bedrock model ID")
-    parser.add_argument("--prompt", type=str, help="Initial prompt for model")
-    args = parser.parse_args()
-
-    run_bedrock_demo(model_id=args.model, prompt=args.prompt)
+    run_bedrock()
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 import os
 import tempfile
 from unittest.mock import MagicMock
-import bedrock_demo
+import bedrock
 
 
 def test_extract_thinking_trace():
@@ -11,14 +11,14 @@ def test_extract_thinking_trace():
         {"text": "<thinking>Tag thinking trace</thinking>"}
     ]
 
-    extracted = bedrock_demo.extract_thinking_trace(blocks)
+    extracted = bedrock.extract_thinking_trace(blocks)
     assert "Reasoning block 1" in extracted
     assert "Tag thinking trace" in extracted
 
 
-def test_run_bedrock_demo_loop(monkeypatch):
+def test_run_bedrock_loop(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
-        monkeypatch.setattr(bedrock_demo, "LOGS_DIR", tmpdir)
+        monkeypatch.setattr(bedrock.common, "LOGS_DIR", tmpdir)
 
         # Mock bedrock client responses
         mock_client = MagicMock()
@@ -56,13 +56,14 @@ def test_run_bedrock_demo_loop(monkeypatch):
 
         mock_client.converse.side_effect = [response_1, response_2]
 
-        log_path = bedrock_demo.run_bedrock_demo(
+        log_path = bedrock.run_bedrock(
             model_id="custom-bedrock-model",
             prompt="Test prompt",
             bedrock_client=mock_client
         )
 
         assert os.path.exists(log_path)
+        assert os.path.basename(log_path).startswith("bedrock_")
         with open(log_path, "r", encoding="utf-8") as f:
             log_content = f.read()
             assert "Model Name: custom-bedrock-model" in log_content

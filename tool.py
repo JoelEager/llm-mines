@@ -4,25 +4,23 @@ LM Studio compatible Model Context Protocol (MCP) stdio interface for Minesweepe
 """
 
 import sys
-import os
 import json
-import datetime
+import os
 import traceback
-from game_logic.game_model import random_minefield, GameState
-from game_logic.renderer import render_concise, render_human, render_status
+import common
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
-LOGS_DIR = os.path.join(BASE_DIR, "logs")
+WIDTH = common.DEFAULT_WIDTH
+HEIGHT = common.DEFAULT_HEIGHT
+MINES = common.DEFAULT_MINES
 
-SESSION_FILENAME = "session_{}.log".format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
-SESSION_LOG_PATH = os.path.join(LOGS_DIR, SESSION_FILENAME)
+SESSION_FILENAME = common.get_log_filename(prefix="tool", timestamp_format="%Y-%m-%d_%H-%M")
+SESSION_LOG_PATH = os.path.join(common.LOGS_DIR, SESSION_FILENAME)
 
 CURRENT_MINEFIELD = None
 
 
 def init_session():
-    os.makedirs(LOGS_DIR, exist_ok=True)
+    common.ensure_logs_dir()
     if not os.path.exists(SESSION_LOG_PATH):
         with open(SESSION_LOG_PATH, "a", encoding="utf-8"):
             pass
@@ -31,86 +29,21 @@ def init_session():
 init_session()
 
 
-def load_config():
-    if os.path.exists(CONFIG_PATH):
-        try:
-            with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-                config = json.load(f)
-                return config
-        except Exception:
-            pass
-    return {"width": 8, "height": 8, "mines": 10}
-
-
-def get_difficulty_params(config):
-    mines = config.get("mines", 10)
-    width = config.get("width", 8)
-    height = config.get("height", 8)
-    return (mines, width, height)
-
-
 def log_action(action_str, human_render):
-    os.makedirs(LOGS_DIR, exist_ok=True)
-
-    timestamp = datetime.datetime.now().isoformat()
-    log_entry = (
-        "=== {} ===\n"
-        "Action: {}\n"
-        "{}\n\n"
-    ).format(timestamp, action_str, human_render)
-
-    with open(SESSION_LOG_PATH, "a", encoding="utf-8") as f:
-        f.write(log_entry)
+    common.log_action(SESSION_LOG_PATH, action_str, human_render)
 
 
 def handle_minesweeper_action(arguments):
     global CURRENT_MINEFIELD
-
-    x = arguments.get("x")
-    y = arguments.get("y")
-    flag = arguments.get("flag", False)
-
-    if x is None or y is None:
-        return {"content": [{"type": "text", "text": "Error: Both 'x' and 'y' parameters are required."}], "isError": True}
-
-    if isinstance(x, bool) or isinstance(y, bool) or not isinstance(x, int) or not isinstance(y, int):
-        return {"content": [{"type": "text", "text": "Error: 'x' and 'y' parameters must be integers."}], "isError": True}
-
-    # Start a new game if no game in progress or if existing game ended
-    if CURRENT_MINEFIELD is None or CURRENT_MINEFIELD.state != GameState.IN_PROGRESS:
-        config = load_config()
-        diff_params = get_difficulty_params(config)
-        CURRENT_MINEFIELD = random_minefield(*diff_params)
-
-    # Perform action
-    action_type = "flag" if flag else "reveal"
-    try:
-        if flag:
-            CURRENT_MINEFIELD.flag_cell(x, y)
-        else:
-            CURRENT_MINEFIELD.reveal_cell(x, y)
-    except (IndexError, TypeError, ValueError) as e:
-        return {"content": [{"type": "text", "text": "Error: {}".format(str(e))}], "isError": True}
-
-    concise = render_concise(CURRENT_MINEFIELD)
-    human = render_human(CURRENT_MINEFIELD)
-    action_str = "{} cell at ({}, {})".format(action_type, x, y)
-
-    # Log action and state
-    log_action(action_str, human)
-
-    # Prepare output
-    output_text = "Action performed: {}\nStatus: {}\nBoard:\n{}".format(
-        action_str, render_status(CURRENT_MINEFIELD), concise
+    CURRENT_MINEFIELD, res = common.process_minesweeper_action(
+        CURRENT_MINEFIELD,
+        arguments,
+        width=WIDTH,
+        height=HEIGHT,
+        mines=MINES,
+        log_file_path=SESSION_LOG_PATH
     )
-    return {
-        "content": [
-            {
-                "type": "text",
-                "text": output_text
-            }
-        ]
-    }
+    return res
 
 
 def handle_request(request):
@@ -119,7 +52,7 @@ def handle_request(request):
     params = request.get("params", {})
 
     if method == "initialize":
-        response = {
+        return {
             "jsonrpc": "2.0",
             "id": req_id,
             "result": {
@@ -133,7 +66,6 @@ def handle_request(request):
                 }
             }
         }
-        return response
 
     elif method == "notifications/initialized":
         return None
@@ -193,7 +125,7 @@ def handle_request(request):
                 "id": req_id,
                 "error": {
                     "code": -32601,
-                    "message": "Tool not found: {}".format(tool_name)
+                    "message": f"Tool not found: {tool_name}"
                 }
             }
 
@@ -204,7 +136,7 @@ def handle_request(request):
                 "id": req_id,
                 "error": {
                     "code": -32601,
-                    "message": "Method not found: {}".format(method)
+                    "message": f"Method not found: {method}"
                 }
             }
         return None
