@@ -1,43 +1,44 @@
-#!/usr/bin/env python3
 """
 Common utilities, constants, and logging logic for Minesweeper MCP tools and bedrock runner.
 """
 
-import os
-import datetime
+from os import path, makedirs
+from datetime import datetime
 from game_logic.game_model import random_minefield, GameState
 from game_logic.renderer import render_concise, render_human, render_status
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-LOGS_DIR = os.path.join(BASE_DIR, "logs")
+BASE_DIR = path.dirname(path.abspath(__file__))
+LOGS_DIR = path.join(BASE_DIR, "logs")
 
-DEFAULT_WIDTH = 8
-DEFAULT_HEIGHT = 8
-DEFAULT_MINES = 10
-
-
-def ensure_logs_dir():
-    """Ensure the logs directory exists."""
-    os.makedirs(LOGS_DIR, exist_ok=True)
+CURRENT_MINEFIELD = None
+LOG_FILE = None
 
 
-def get_log_filename(prefix="tool", timestamp_format="%Y-%m-%d_%H-%M"):
-    """Generate a log filename given a prefix and timestamp format."""
-    now_str = datetime.datetime.now().strftime(timestamp_format)
-    return f"{prefix}_{now_str}.log"
+def set_log_filename(prefix):
+    """Generate a log filename given a prefix."""
+    makedirs(LOGS_DIR, exist_ok=True)
+    now_str = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    global LOG_FILE
+    LOG_FILE = path.join(LOGS_DIR, f"{prefix}_{now_str}.log")
 
 
-def log_action(log_file_path, action_str, human_render):
+def log(message):
+    """Log a message to the specified log file."""
+    if LOG_FILE is None:
+        raise ValueError("LOG_FILE is not set. Call set_log_filename() first.")
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
+        f.write(message + "\n")
+
+
+def log_action(action_str, human_render):
     """Log an action and human board render to the specified log file."""
-    ensure_logs_dir()
-    timestamp = datetime.datetime.now().isoformat()
+    timestamp = datetime.now().strftime("%H:%M:%S")
     log_entry = (
         f"=== {timestamp} ===\n"
         f"Action: {action_str}\n"
-        f"{human_render}\n\n"
+        f"{human_render}\n"
     )
-    with open(log_file_path, "a", encoding="utf-8") as f:
-        f.write(log_entry)
+    log(log_entry)
 
 
 def validate_action_arguments(arguments):
@@ -61,36 +62,36 @@ def validate_action_arguments(arguments):
     return x, y, bool(flag), None
 
 
-def process_minesweeper_action(minefield, arguments, width=DEFAULT_WIDTH, height=DEFAULT_HEIGHT, mines=DEFAULT_MINES, log_file_path=None):
+def process_minesweeper_action(arguments, width, height, mines):
     """
     Process a minesweeper action on the given minefield (creating a new one if None or finished).
-    Returns (updated_minefield, response_dict).
+    Returns response_dict.
     """
     x, y, flag, err = validate_action_arguments(arguments)
     if err:
-        return minefield, {"content": [{"type": "text", "text": err}], "isError": True}
+        return {"content": [{"type": "text", "text": err}], "isError": True}
 
-    if minefield is None or minefield.state != GameState.IN_PROGRESS:
-        minefield = random_minefield(mines, width, height)
+    global CURRENT_MINEFIELD
+    if CURRENT_MINEFIELD is None or CURRENT_MINEFIELD.state != GameState.IN_PROGRESS:
+        CURRENT_MINEFIELD = random_minefield(mines, width, height)
 
     action_type = "flag" if flag else "reveal"
     try:
         if flag:
-            minefield.flag_cell(x, y)
+            CURRENT_MINEFIELD.flag_cell(x, y)
         else:
-            minefield.reveal_cell(x, y)
+            CURRENT_MINEFIELD.reveal_cell(x, y)
     except (IndexError, TypeError, ValueError) as e:
-        return minefield, {"content": [{"type": "text", "text": f"Error: {e}"}], "isError": True}
+        log(f"Error processing action {action_type} at ({x}, {y}): {e}")
+        return {"content": [{"type": "text", "text": f"Error: {e}"}], "isError": True}
 
-    concise = render_concise(minefield)
-    human = render_human(minefield)
     action_str = f"{action_type} cell at ({x}, {y})"
+    human = render_human(CURRENT_MINEFIELD)
+    log_action(action_str, human)
 
-    if log_file_path:
-        log_action(log_file_path, action_str, human)
-
-    output_text = f"Action performed: {action_str}\nStatus: {render_status(minefield)}\nBoard:\n{concise}"
-    return minefield, {
+    concise = render_concise(CURRENT_MINEFIELD)
+    output_text = f"Action performed: {action_str}\nStatus: {render_status(CURRENT_MINEFIELD)}\nBoard:\n{concise}"
+    return {
         "content": [
             {
                 "type": "text",
