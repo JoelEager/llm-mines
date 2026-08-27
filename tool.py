@@ -1,10 +1,18 @@
+#!/usr/bin/env python3
 """
-Entry point and CLI implementation for terminal-mines.
+LM Studio compatible Model Context Protocol (MCP) stdio interface for Minesweeper.
 """
 
-import click
+import sys
+import os
+import json
+import datetime
+from game_logic import Minefield, random_minefield, GameState, render_concise, render_human
 
-from .game_logic import random_minefield, Minefield, GameState, input_loop, render, solve_game
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
+STATE_PATH = os.path.join(BASE_DIR, "state.json")
+LOGS_DIR = os.path.join(BASE_DIR, "logs")
 
 DIFFICULTY_PRESETS = {
     "balanced": (35, 20, 15),
@@ -15,101 +23,258 @@ DIFFICULTY_PRESETS = {
 }
 
 
-class DifficultyParamType(click.ParamType):
-    """
-    Converts the provided difficulty string into the 3 args expected by random_minefield().
-    """
-    def convert(self, value, param, ctx):
-        if value in DIFFICULTY_PRESETS:
-            return DIFFICULTY_PRESETS[value]
-        elif "," not in value:
-            self.fail("'{}' is not a valid difficulty name".format(value), param, ctx)
+def load_config():
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, "r") as f:
+                config = json.load(f)
+                return config
+        except Exception:
+            pass
+    return {"difficulty": "easy"}
+
+
+def get_difficulty_params(config):
+    diff = config.get("difficulty", "easy")
+    if isinstance(diff, str) and diff in DIFFICULTY_PRESETS:
+        return DIFFICULTY_PRESETS[diff]
+    elif isinstance(diff, dict):
+        mines = diff.get("mines", 10)
+        width = diff.get("width", 8)
+        height = diff.get("height", 8)
+        return (mines, width, height)
+    elif isinstance(diff, (list, tuple)) and len(diff) == 3:
+        return tuple(diff)
+    return DIFFICULTY_PRESETS["easy"]
+
+
+def load_state():
+    if os.path.exists(STATE_PATH):
+        try:
+            with open(STATE_PATH, "r") as f:
+                data = json.load(f)
+                minefield = Minefield.from_dict(data["minefield"])
+                game_id = data.get("game_id")
+                return minefield, game_id
+        except Exception:
+            pass
+    return None, None
+
+
+def save_state(minefield, game_id):
+    data = {
+        "game_id": game_id,
+        "minefield": minefield.to_dict()
+    }
+    with open(STATE_PATH, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def remove_state():
+    if os.path.exists(STATE_PATH):
+        try:
+            os.remove(STATE_PATH)
+        except OSError:
+            pass
+
+
+def log_action(game_id, action_str, concise_render, human_render, state_name):
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    game_log_path = os.path.join(LOGS_DIR, "{}.log".format(game_id))
+
+    timestamp = datetime.datetime.now().isoformat()
+    log_entry = (
+        "=== Action at {} ===\n"
+        "Action: {}\n"
+        "State: {}\n"
+        "Concise Render:\n{}\n"
+        "Human Render:\n{}\n\n"
+    ).format(timestamp, action_str, state_name, concise_render, human_render)
+
+    with open(game_log_path, "a") as f:
+        f.write(log_entry)
+
+    if state_name in ("WON", "LOST"):
+        master_log_path = os.path.join(LOGS_DIR, "master.log")
+        master_entry = (
+            "=== Game Ended: {} at {} ===\n"
+            "Final State: {}\n"
+            "Concise Render:\n{}\n"
+            "Human Render:\n{}\n"
+            "----------------------------------------\n\n"
+        ).format(game_id, timestamp, state_name, concise_render, human_render)
+        with open(master_log_path, "a") as f:
+            f.write(master_entry)
+
+
+def handle_minesweeper_action(arguments):
+    x = arguments.get("x")
+    y = arguments.get("y")
+    flag = arguments.get("flag", False)
+
+    if x is None or y is None:
+        return {"content": [{"type": "text", "text": "Error: Both 'x' and 'y' parameters are required."}], "isError": True}
+
+    minefield, game_id = load_state()
+
+    # Start a new game if no game in progress or if existing game ended
+    if minefield is None or minefield.state != GameState.IN_PROGRESS:
+        config = load_config()
+        diff_params = get_difficulty_params(config)
+        minefield = random_minefield(*diff_params)
+        game_id = datetime.datetime.now().strftime("game_%Y%m%d_%H%M%S_%f")
+
+    # Perform action
+    action_type = "flag" if flag else "reveal"
+    try:
+        if flag:
+            minefield.flag_cell(x, y)
         else:
-            try:
-                args = tuple(map(int, value.split(",")))
+            minefield.reveal_cell(x, y)
+    except IndexError as e:
+        return {"content": [{"type": "text", "text": "Error: {}".format(str(e))}], "isError": True}
 
-                if len(args) != 3:
-                    raise ValueError
-                elif args[0] < 0 or args[1] < 0 or args[2] < 0:
-                    raise ValueError
-                elif args[1] > 50 or args[2] > 50:
-                    self.fail("the game board cannot be larger than 50 cells on either side", param, ctx)
-                elif args[0] > args[1] * args[2]:
-                    self.fail("{} mines cannot fit in a board size of {} by {}".format(*args), param, ctx)
+    concise = render_concise(minefield)
+    human = render_human(minefield)
+    action_str = "{} cell at ({}, {})".format(action_type, x, y)
 
-                return args
-            except ValueError:
-                self.fail("a custom difficulty must be made of 3 positive integers separated by commas", param, ctx)
+    # Log action and state
+    log_action(game_id, action_str, concise, human, minefield.state.name)
 
-
-@click.command(context_settings=dict(help_option_names=["-h", "--help"]))
-@click.pass_context
-@click.argument("difficulty", default="balanced", type=DifficultyParamType())
-@click.option("--solve", is_flag=True, help="Watch the included AI attempt to solve the minefield.")
-@click.option("mines_file", "--mines", type=click.File(), help="Provide a file containing custom mine placements.")
-def main(ctx, difficulty, solve, mines_file):
-    """
-    Terminal Mines
-
-    A command-line variant of Minesweeper in Python.
-
-    \b
-    Controls:
-    - WASD or arrow keys to move the cursor
-    - Enter or space to reveal the current cell
-    - e or ' to place a flag
-    - ESC to quit
-
-    DIFFICULTY can either be one of the modes listed below or a custom difficulty of the form
-    "<number of mines>,<width>,<height>". If no difficulty is specified, then Terminal Mines will default to balanced.
-
-    \b
-    Terminal Mines difficulties:
-    - balanced: A 20x15 board with 35 mines
-    - challenging: A 25x20 board with 70 mines
-
-    \b
-    Official Minesweeper difficulties:
-    - easy: A 8x8 board with 10 mines
-    - intermediate: A 16x16 board with 40 mines
-    - expert: A 16x30 board with 99 mines
-
-    The mines file (if provided) is used to control the placement of mines. It must be a CSV where each line is of the
-    form "<x>,<y>". Both coordinates are 0-based and count from the top-left corner of the game board. If any of the
-    specified mines are outside the bounds of the game board they will be skipped. If a mines file is provided the
-    "number of mines" portion of the difficulty setting will be ignored. If the first move would reveal a mine it will
-    be relocated to a random cell that does not contain a mine.
-    """
-    if mines_file:
-        mines = set(map(lambda line: line.strip(), mines_file))
-        minefield = Minefield(difficulty[1], difficulty[2], mines)
-
-        if minefield.num_mines == 0:
-            ctx.fail("Mines file did not contain any valid mines")
+    # Save state or remove if finished
+    if minefield.state == GameState.IN_PROGRESS:
+        save_state(minefield, game_id)
     else:
-        minefield = random_minefield(*difficulty)
+        remove_state()
 
-    if solve:
-        solve_game(minefield)
+    output_text = "Action performed: {}\nGame State: {}\n\nBoard:\n{}".format(
+        action_str, minefield.state.name, concise
+    )
+    return {
+        "content": [
+            {
+                "type": "text",
+                "text": output_text
+            }
+        ]
+    }
+
+
+def handle_request(request):
+    req_id = request.get("id")
+    method = request.get("method")
+    params = request.get("params", {})
+
+    if method == "initialize":
+        response = {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {
+                    "tools": {}
+                },
+                "serverInfo": {
+                    "name": "minesweeper-mcp",
+                    "version": "1.0.0"
+                }
+            }
+        }
+        return response
+
+    elif method == "notifications/initialized":
+        return None
+
+    elif method == "ping":
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": {}
+        }
+
+    elif method == "tools/list":
+        return {
+            "jsonrpc": "2.0",
+            "id": req_id,
+            "result": {
+                "tools": [
+                    {
+                        "name": "minesweeper_action",
+                        "description": "Make a move in Minesweeper by revealing or flagging a cell at (x, y).",
+                        "inputSchema": {
+                            "type": "object",
+                            "properties": {
+                                "x": {
+                                    "type": "integer",
+                                    "description": "The X coordinate (0-indexed from top-left)."
+                                },
+                                "y": {
+                                    "type": "integer",
+                                    "description": "The Y coordinate (0-indexed from top-left)."
+                                },
+                                "flag": {
+                                    "type": "boolean",
+                                    "description": "True to flag/unflag the cell, False to reveal it. Defaults to False."
+                                }
+                            },
+                            "required": ["x", "y"]
+                        }
+                    }
+                ]
+            }
+        }
+
+    elif method == "tools/call":
+        tool_name = params.get("name")
+        arguments = params.get("arguments", {})
+        if tool_name == "minesweeper_action":
+            res = handle_minesweeper_action(arguments)
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "result": res
+            }
+        else:
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "error": {
+                    "code": -32601,
+                    "message": "Tool not found: {}".format(tool_name)
+                }
+            }
+
     else:
-        def handle_key(key):
-            if key == "w":
-                minefield.y = (minefield.y - 1) % minefield.height
-            elif key == "s":
-                minefield.y = (minefield.y + 1) % minefield.height
-            elif key == "a":
-                minefield.x = (minefield.x - 1) % minefield.width
-            elif key == "d":
-                minefield.x = (minefield.x + 1) % minefield.width
-            elif key == "e" or key == "'":
-                minefield.flag_cell(minefield.x, minefield.y)
-            elif key == "\n" or key == " ":
-                minefield.reveal_cell(minefield.x, minefield.y)
+        if req_id is not None:
+            return {
+                "jsonrpc": "2.0",
+                "id": req_id,
+                "error": {
+                    "code": -32601,
+                    "message": "Method not found: {}".format(method)
+                }
+            }
+        return None
 
-            render(minefield)
 
-            if minefield.state != GameState.IN_PROGRESS:
-                ctx.exit(0)
+def main():
+    while True:
+        line = sys.stdin.readline()
+        if not line:
+            break
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            request = json.loads(line)
+        except Exception:
+            continue
 
-        render(minefield)
-        input_loop(handle_key)
+        response = handle_request(request)
+        if response is not None:
+            sys.stdout.write(json.dumps(response) + "\n")
+            sys.stdout.flush()
+
+
+if __name__ == "__main__":
+    main()

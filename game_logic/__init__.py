@@ -1,7 +1,5 @@
 """
-Implements the game and the necessary input/output logic for interacting with the user.
+Implements the game and renderer logic.
 """
 from .game_model import Minefield, random_minefield, GameState, CellState
-from .keyboard_listener import input_loop
-from .renderer import render
-from .solver import solve_game
+from .renderer import render, render_concise, render_human

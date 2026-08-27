@@ -1,25 +1,83 @@
-# Terminal Mines
-A command-line variant of Minesweeper in Python.
+# Minesweeper MCP Server
 
-![Screenshot](https://raw.githubusercontent.com/JoelEager/terminal-mines/master/screenshot.png "A game in progress")
+An LM Studio-compatible Model Context Protocol (MCP) tool interface over Standard IO (stdio) for playing Minesweeper with LLMs.
 
-Supports Linux, Mac, and Windows on Python 3.4 or newer. Can be played in most terminal emulators that support colors. 
-Includes options for custom difficulties and user-specified mine placements.
+## Overview
 
-To install use pip:
+This project turns Minesweeper into an interactive tool for Large Language Models. Models can interact with the game via the `minesweeper_action` MCP tool to reveal or flag cells on a grid.
+
+### Features
+- **MCP Tool Protocol**: Exposes `minesweeper_action(x, y, flag)` over stdio.
+- **State Persistence**: Persists active game state in `state.json`. If no game is active, a new game starts automatically.
+- **Configurable Difficulty**: Configured via `config.json` next to the code (presets or custom dimensions).
+- **Dual Render Engine**:
+  - **Concise format**: Compact grid text returned directly to the LLM.
+  - **Human-readable format**: Clean ASCII/Unicode box-drawing format saved in logs.
+- **Comprehensive Logging**: Individual timestamped game logs in `logs/` and end-of-game summary entries in `logs/master.log`.
+
+---
+
+## Configuration
+
+The game difficulty can be customized in `config.json` located in the root directory.
+
+### Using a Preset Difficulty
+
+```json
+{
+  "difficulty": "easy"
+}
 ```
-pip install terminal-mines
+
+Preset difficulties:
+- `"easy"`: 8x8 grid with 10 mines
+- `"balanced"`: 20x15 grid with 35 mines
+- `"intermediate"`: 16x16 grid with 40 mines
+- `"challenging"`: 25x20 grid with 70 mines
+- `"expert"`: 16x30 grid with 99 mines
+
+### Using a Custom Difficulty
+
+You can also specify a custom grid size and mine count in `config.json` as an object:
+
+```json
+{
+  "difficulty": {
+    "width": 10,
+    "height": 10,
+    "mines": 15
+  }
+}
 ```
 
-Once installed, use the `mines` command to start a new game.
+---
 
-**For help, controls, and usage run `mines --help` after installing.**
+## LM Studio Setup
 
-If you'd like to set `terminal-mines` up for local development run these commands:
+To connect this tool to LM Studio via MCP, add the server configuration to your LM Studio MCP settings (`mcp_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "minesweeper": {
+      "command": "python3",
+      "args": [
+        "/absolute/path/to/terminal-mines/tool.py"
+      ]
+    }
+  }
+}
 ```
-git clone https://github.com/JoelEager/terminal-mines.git
-cd terminal-mines
-pip install --editable .
-```
 
-After doing that the `mines` command will point to your cloned version.
+*(Replace `/absolute/path/to/terminal-mines/tool.py` with the absolute path to `tool.py` on your machine)*
+
+---
+
+## Example Prompt for LLM
+
+Once configured in LM Studio, you can prompt the AI model as follows:
+
+```text
+Please play a game of Minesweeper using the `minesweeper_action` tool.
+Start by revealing cell (0, 0), then analyze the returned grid board state to decide your next moves logically until the game is won or lost.
+```

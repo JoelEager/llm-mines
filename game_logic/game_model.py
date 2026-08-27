@@ -60,6 +60,42 @@ class Minefield:
     def __repr__(self):
         return "{}({}, {})".format(type(self).__name__, self.width, self.height)
 
+    def to_dict(self):
+        return {
+            "width": self.width,
+            "height": self.height,
+            "x": self.x,
+            "y": self.y,
+            "state": self.state.name,
+            "first_move": self._first_move,
+            "grid": [
+                [
+                    {"is_mine": cell.is_mine, "state": cell.state.value}
+                    for cell in row
+                ]
+                for row in self.rows
+            ]
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        minefield = cls.__new__(cls)
+        minefield.width = data["width"]
+        minefield.height = data["height"]
+        minefield.x = data.get("x", 0)
+        minefield.y = data.get("y", 0)
+        minefield.state = GameState[data["state"]]
+        minefield._first_move = data.get("first_move", True)
+        minefield.rows = []
+        for row_data in data["grid"]:
+            row = []
+            for cell_data in row_data:
+                cell = Cell(cell_data["is_mine"])
+                cell.state = CellState(cell_data["state"])
+                row.append(cell)
+            minefield.rows.append(row)
+        return minefield
+
     @property
     def cells(self):
         """
@@ -91,7 +127,7 @@ class Minefield:
         if 0 <= x < self.width and 0 <= y < self.height:
             return self.rows[y][x]
         else:
-            raise IndexError
+            raise IndexError("Coordinates ({}, {}) out of bounds".format(x, y))
 
     def neighboring_cords(self, x, y):
         """
@@ -157,7 +193,6 @@ class Minefield:
                         return
 
                 self.state = GameState.WON
-
 
     def flag_cell(self, x, y):
         """
