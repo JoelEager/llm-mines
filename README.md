@@ -3,33 +3,17 @@ An LM Studio-compatible Model Context Protocol (MCP) tool interface over Standar
 
 ## Features
 - **MCP Tool Protocol**: Exposes `minesweeper_action(x, y, flag)` over stdio.
-- **State Persistence**: Persists active game state via `state.json` in the repo root. If no game is active a new game starts automatically. *To abandon a game in progress delete this file.*
-- **Configurable Difficulty**: Configured via `config.json` in the repo root.
-- **Logging**: Individual timestamped game logs in `logs/` and end-of-game summary entries in `logs/master.log`.
+- **In-Memory State**: Active game state is held in memory for the duration of the server process. If no game is active or a game ends, a new game starts automatically on the next action.
+- **Configurable Grid & Mine Count**: Configured via `config.json` in the repo root.
+- **Session Logging**: Creates a timestamped session log file in `logs/` whenever the server process starts up, recording all actions for that session. Master entries for completed games are recorded in `logs/master.log`.
 
-### Using a Preset Difficulty
-- `"easy"`: 8x8 grid with 10 mines
-- `"balanced"`: 20x15 grid with 35 mines
-- `"intermediate"`: 16x16 grid with 40 mines
-- `"challenging"`: 25x20 grid with 70 mines
-- `"expert"`: 16x30 grid with 99 mines
-
-Example:
+### Configuration
+You can specify grid size and mine count in `config.json`:
 ```json
 {
-  "difficulty": "easy"
-}
-```
-
-### Using a Custom Difficulty
-You can also specify a custom grid size and mine count:
-```json
-{
-  "difficulty": {
-    "width": 10,
-    "height": 10,
-    "mines": 15
-  }
+  "width": 8,
+  "height": 8,
+  "mines": 10
 }
 ```
 

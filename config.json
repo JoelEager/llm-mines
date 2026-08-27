@@ -1,3 +1,5 @@
 {
-    "difficulty": "easy"
+    "width": 8,
+    "height": 8,
+    "mines": 10
 }

@@ -12,16 +12,22 @@ from game_logic import Minefield, random_minefield, GameState, render_concise, r
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
-STATE_PATH = os.path.join(BASE_DIR, "state.json")
 LOGS_DIR = os.path.join(BASE_DIR, "logs")
 
-DIFFICULTY_PRESETS = {
-    "balanced": (35, 20, 15),
-    "challenging": (70, 25, 20),
-    "easy": (10, 8, 8),
-    "intermediate": (40, 16, 16),
-    "expert": (99, 16, 30)
-}
+SESSION_FILENAME = "session_{}.log".format(datetime.datetime.now().strftime("%Y-%m-%d_%H-%M"))
+SESSION_LOG_PATH = os.path.join(LOGS_DIR, SESSION_FILENAME)
+
+CURRENT_MINEFIELD = None
+
+
+def init_session():
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    if not os.path.exists(SESSION_LOG_PATH):
+        with open(SESSION_LOG_PATH, "a", encoding="utf-8") as f:
+            pass
+
+
+init_session()
 
 
 def load_config():
@@ -32,56 +38,18 @@ def load_config():
                 return config
         except Exception:
             pass
-    return {"difficulty": "easy"}
+    return {"width": 8, "height": 8, "mines": 10}
 
 
 def get_difficulty_params(config):
-    diff = config.get("difficulty", "easy")
-    if isinstance(diff, str) and diff in DIFFICULTY_PRESETS:
-        return DIFFICULTY_PRESETS[diff]
-    elif isinstance(diff, dict):
-        mines = diff.get("mines", 10)
-        width = diff.get("width", 8)
-        height = diff.get("height", 8)
-        return (mines, width, height)
-    elif isinstance(diff, (list, tuple)) and len(diff) == 3:
-        return tuple(diff)
-    return DIFFICULTY_PRESETS["easy"]
+    mines = config.get("mines", 10)
+    width = config.get("width", 8)
+    height = config.get("height", 8)
+    return (mines, width, height)
 
 
-def load_state():
-    if os.path.exists(STATE_PATH):
-        try:
-            with open(STATE_PATH, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                minefield = Minefield.from_dict(data["minefield"])
-                game_id = data.get("game_id")
-                return minefield, game_id
-        except Exception:
-            pass
-    return None, None
-
-
-def save_state(minefield, game_id):
-    data = {
-        "game_id": game_id,
-        "minefield": minefield.to_dict()
-    }
-    with open(STATE_PATH, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
-
-
-def remove_state():
-    if os.path.exists(STATE_PATH):
-        try:
-            os.remove(STATE_PATH)
-        except OSError:
-            pass
-
-
-def log_action(game_id, action_str, human_render, state_name):
+def log_action(action_str, human_render, state_name):
     os.makedirs(LOGS_DIR, exist_ok=True)
-    game_log_path = os.path.join(LOGS_DIR, "{}.log".format(game_id))
 
     timestamp = datetime.datetime.now().isoformat()
     log_entry = (
@@ -91,20 +59,23 @@ def log_action(game_id, action_str, human_render, state_name):
         "{}\n\n"
     ).format(timestamp, action_str, state_name, human_render)
 
-    with open(game_log_path, "a", encoding="utf-8") as f:
+    session_log_path = os.path.join(LOGS_DIR, SESSION_FILENAME)
+    with open(session_log_path, "a", encoding="utf-8") as f:
         f.write(log_entry)
 
     if state_name in ("WON", "LOST"):
         master_log_path = os.path.join(LOGS_DIR, "master.log")
         master_entry = (
-            "=== Game {} ===\n"
+            "=== Game Completed at {} ===\n"
             "{}\n\n"
-        ).format(game_id, human_render)
+        ).format(timestamp, human_render)
         with open(master_log_path, "a", encoding="utf-8") as f:
             f.write(master_entry)
 
 
 def handle_minesweeper_action(arguments):
+    global CURRENT_MINEFIELD
+
     x = arguments.get("x")
     y = arguments.get("y")
     flag = arguments.get("flag", False)
@@ -115,40 +86,31 @@ def handle_minesweeper_action(arguments):
     if isinstance(x, bool) or isinstance(y, bool) or not isinstance(x, int) or not isinstance(y, int):
         return {"content": [{"type": "text", "text": "Error: 'x' and 'y' parameters must be integers."}], "isError": True}
 
-    minefield, game_id = load_state()
-
     # Start a new game if no game in progress or if existing game ended
-    if minefield is None or minefield.state != GameState.IN_PROGRESS:
+    if CURRENT_MINEFIELD is None or CURRENT_MINEFIELD.state != GameState.IN_PROGRESS:
         config = load_config()
         diff_params = get_difficulty_params(config)
-        minefield = random_minefield(*diff_params)
-        game_id = datetime.datetime.now().strftime("game_%Y-%m-%d_%H-%M")
+        CURRENT_MINEFIELD = random_minefield(*diff_params)
 
     # Perform action
     action_type = "flag" if flag else "reveal"
     try:
         if flag:
-            minefield.flag_cell(x, y)
+            CURRENT_MINEFIELD.flag_cell(x, y)
         else:
-            minefield.reveal_cell(x, y)
+            CURRENT_MINEFIELD.reveal_cell(x, y)
     except (IndexError, TypeError, ValueError) as e:
         return {"content": [{"type": "text", "text": "Error: {}".format(str(e))}], "isError": True}
 
-    concise = render_concise(minefield)
-    human = render_human(minefield)
+    concise = render_concise(CURRENT_MINEFIELD)
+    human = render_human(CURRENT_MINEFIELD)
     action_str = "{} cell at ({}, {})".format(action_type, x, y)
 
     # Log action and state
-    log_action(game_id, action_str, human, minefield.state.name)
-
-    # Save state or remove if finished
-    if minefield.state == GameState.IN_PROGRESS:
-        save_state(minefield, game_id)
-    else:
-        remove_state()
+    log_action(action_str, human, CURRENT_MINEFIELD.state.name)
 
     output_text = "Action performed: {}\nGame State: {}\nBoard:\n{}".format(
-        action_str, minefield.state.name, concise
+        action_str, CURRENT_MINEFIELD.state.name, concise
     )
     return {
         "content": [

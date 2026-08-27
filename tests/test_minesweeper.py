@@ -12,18 +12,21 @@ def test_utf8_logging(monkeypatch):
         human = render_human(random_minefield(5, 5, 5))
 
         # Test writing log entry without raising UnicodeEncodeError in non-UTF-8 environments
-        tool.log_action("test_game", "reveal cell at (0, 0)", human, "IN_PROGRESS")
-        game_log = os.path.join(tmpdir, "test_game.log")
-        assert os.path.exists(game_log)
+        tool.log_action("reveal cell at (0, 0)", human, "IN_PROGRESS")
+        session_log = os.path.join(tmpdir, tool.SESSION_FILENAME)
+        assert os.path.exists(session_log)
 
-        with open(game_log, "r", encoding="utf-8") as f:
+        with open(session_log, "r", encoding="utf-8") as f:
             content = f.read()
             assert "reveal cell at (0, 0)" in content
 
         # Test master log on game over
-        tool.log_action("test_game", "reveal cell at (0, 0)", human, "WON")
+        tool.log_action("reveal cell at (0, 0)", human, "WON")
         master_log = os.path.join(tmpdir, "master.log")
         assert os.path.exists(master_log)
+        with open(master_log, "r", encoding="utf-8") as f:
+            m_content = f.read()
+            assert "=== Game Completed at" in m_content
 
 
 def test_misflagged_cell_does_not_trigger_false_win():
