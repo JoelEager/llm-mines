@@ -79,7 +79,7 @@ def remove_state():
             pass
 
 
-def log_action(game_id, action_str, concise_render, human_render, state_name):
+def log_action(game_id, action_str, human_render, state_name):
     os.makedirs(LOGS_DIR, exist_ok=True)
     game_log_path = os.path.join(LOGS_DIR, "{}.log".format(game_id))
 
@@ -88,9 +88,8 @@ def log_action(game_id, action_str, concise_render, human_render, state_name):
         "=== Action at {} ===\n"
         "Action: {}\n"
         "State: {}\n"
-        "Concise Render:\n{}\n"
-        "Human Render:\n{}\n\n"
-    ).format(timestamp, action_str, state_name, concise_render, human_render)
+        "{}\n\n"
+    ).format(timestamp, action_str, state_name, human_render)
 
     with open(game_log_path, "a", encoding="utf-8") as f:
         f.write(log_entry)
@@ -98,12 +97,9 @@ def log_action(game_id, action_str, concise_render, human_render, state_name):
     if state_name in ("WON", "LOST"):
         master_log_path = os.path.join(LOGS_DIR, "master.log")
         master_entry = (
-            "=== Game Ended: {} at {} ===\n"
-            "Final State: {}\n"
-            "Concise Render:\n{}\n"
-            "Human Render:\n{}\n"
-            "----------------------------------------\n\n"
-        ).format(game_id, timestamp, state_name, concise_render, human_render)
+            "=== Game {} ===\n"
+            "{}\n\n"
+        ).format(game_id, human_render)
         with open(master_log_path, "a", encoding="utf-8") as f:
             f.write(master_entry)
 
@@ -126,7 +122,7 @@ def handle_minesweeper_action(arguments):
         config = load_config()
         diff_params = get_difficulty_params(config)
         minefield = random_minefield(*diff_params)
-        game_id = datetime.datetime.now().strftime("game_%Y%m%d_%H%M%S_%f")
+        game_id = datetime.datetime.now().strftime("game_%Y-%m-%d_%H-%M")
 
     # Perform action
     action_type = "flag" if flag else "reveal"
@@ -143,7 +139,7 @@ def handle_minesweeper_action(arguments):
     action_str = "{} cell at ({}, {})".format(action_type, x, y)
 
     # Log action and state
-    log_action(game_id, action_str, concise, human, minefield.state.name)
+    log_action(game_id, action_str, human, minefield.state.name)
 
     # Save state or remove if finished
     if minefield.state == GameState.IN_PROGRESS:
@@ -151,7 +147,7 @@ def handle_minesweeper_action(arguments):
     else:
         remove_state()
 
-    output_text = "Action performed: {}\nGame State: {}\n\nBoard:\n{}".format(
+    output_text = "Action performed: {}\nGame State: {}\nBoard:\n{}".format(
         action_str, minefield.state.name, concise
     )
     return {

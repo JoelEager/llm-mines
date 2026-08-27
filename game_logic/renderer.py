@@ -1,5 +1,5 @@
 """
-Handles the rendering of the game state into concise or human readable formats.
+Handles the rendering of the game state.
 """
 
 from itertools import chain
@@ -8,18 +8,18 @@ from .game_model import GameState, CellState
 
 def render_concise(minefield):
     """
-    Renders the game board in a concise format without borders or stats, optimized for LLM consumption.
+    Renders the game board in a concise format optimized for LLM consumption.
     """
     lines = []
     for y in range(minefield.height):
         row = [minefield.get_cell(x, y).state.value for x in range(minefield.width)]
-        lines.append(" ".join(row))
+        lines.append("".join(row))
     return "\n".join(lines)
 
 
 def render_human(minefield):
     """
-    Renders the game state using unicode box-drawing characters without ANSI colors.
+    Renders the game state with unicode box-drawing characters and status information.
     """
     def gen_lines():
         yield chr(0x250C) + chr(0x2500) * (minefield.width * 2 + 1) + chr(0x2510)
@@ -44,12 +44,3 @@ def render_human(minefield):
             )
 
     return "\n".join(gen_lines())
-
-
-def render(minefield, human=False):
-    """
-    Renders the minefield. If human is True, returns human readable box format. Otherwise returns concise format.
-    """
-    if human:
-        return render_human(minefield)
-    return render_concise(minefield)
