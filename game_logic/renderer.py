@@ -35,7 +35,7 @@ def render_human(minefield):
         elif minefield.state == GameState.LOST:
             yield " Game lost"
         else:
-            remain_safe = len([cell for cell in minefield.cells if not cell.is_mine and cell.state == CellState.UNKNOWN])
+            remain_safe = len([cell for cell in minefield.cells if not cell.is_mine and cell.state in (CellState.UNKNOWN, CellState.FLAGGED)])
             yield " {} / {} marked; {} safe {}".format(
                 len([cell for cell in minefield.cells if cell.state == CellState.FLAGGED]),
                 minefield.num_mines,
