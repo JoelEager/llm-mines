@@ -28,11 +28,11 @@ Play a game of Minesweeper using the `minesweeper_action` tool. Use the JavaScri
 
 ### Rules & Objective
 - The grid contains hidden mines. Your goal is to reveal all non-mine cells without detonating any mines.
-- Revealing a mine immediately ends the game in defeat (`LOST`).
+- Revealing a mine immediately ends the game in defeat.
 - The first move is always safe; if you target a mine on your first turn, it is automatically relocated.
 
 ### Output Format & Interpretation
-The `minesweeper_action` tool returns the current `Game State` (`IN_PROGRESS`, `WON`, or `LOST`) and a text grid representing the board.
+The `minesweeper_action` tool returns a text grid representing the board.
 - Grid coordinates are 0-indexed: `x` represents the column (0 is left-most), and `y` represents the row (0 is top-most).
 - Each character in the text grid represents a cell:
   - `?`: Unknown / hidden cell.
@@ -48,5 +48,8 @@ The `minesweeper_action` tool returns the current `Game State` (`IN_PROGRESS`, `
    - If the number of hidden (`?`) plus flagged (`F`) neighbors equals the cell's number, all remaining hidden neighbors are mines—flag them using `flag=True`.
    - If the number of flagged (`F`) neighbors already equals the cell's number, all remaining hidden (`?`) neighbors are safe—reveal them using `flag=False`.
    - Be sure you have flagged all known mines before looking for safe cells to reveal.
-3. **Iterative Play**: Continue analyzing the board state after every action. Make one or multiple safe logical moves per turn until the game state becomes `WON` or `LOST`. Update your JavaScript helper as you go to refine your strategy. When you must guess use your helper to select an advantageous one.
+3. **Iterative Play**: Repeat the following steps until the game ends.
+   1. Analyze the board and update your JavaScript helper.
+   2. Use it to select the best next move.
+   3. Use the minesweeper tool to take that action.
 ```

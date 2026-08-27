@@ -8,7 +8,8 @@ import os
 import json
 import datetime
 import traceback
-from game_logic import random_minefield, GameState, render_concise, render_human
+from game_logic.game_model import random_minefield, GameState
+from game_logic.renderer import render_concise, render_human, render_status
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -48,16 +49,15 @@ def get_difficulty_params(config):
     return (mines, width, height)
 
 
-def log_action(action_str, human_render, state_name):
+def log_action(action_str, human_render):
     os.makedirs(LOGS_DIR, exist_ok=True)
 
     timestamp = datetime.datetime.now().isoformat()
     log_entry = (
         "=== {} ===\n"
         "Action: {}\n"
-        "State: {}\n"
         "{}\n\n"
-    ).format(timestamp, action_str, state_name, human_render)
+    ).format(timestamp, action_str, human_render)
 
     with open(SESSION_LOG_PATH, "a", encoding="utf-8") as f:
         f.write(log_entry)
@@ -97,10 +97,11 @@ def handle_minesweeper_action(arguments):
     action_str = "{} cell at ({}, {})".format(action_type, x, y)
 
     # Log action and state
-    log_action(action_str, human, CURRENT_MINEFIELD.state.name)
+    log_action(action_str, human)
 
-    output_text = "Action performed: {}\nGame State: {}\nBoard:\n{}".format(
-        action_str, CURRENT_MINEFIELD.state.name, concise
+    # Prepare output
+    output_text = "Action performed: {}\nStatus: {}\nBoard:\n{}".format(
+        action_str, render_status(CURRENT_MINEFIELD), concise
     )
     return {
         "content": [

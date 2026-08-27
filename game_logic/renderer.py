@@ -6,6 +6,21 @@ from itertools import chain
 from .game_model import GameState, CellState
 
 
+def render_status(minefield):
+    if minefield.state == GameState.WON:
+        return "Game won"
+    elif minefield.state == GameState.LOST:
+        return "Game lost"
+    else:
+        remain_safe = len([cell for cell in minefield.cells if not cell.is_mine and cell.state in (CellState.UNKNOWN, CellState.FLAGGED)])
+        return "{} / {} marked; {} safe {}".format(
+            len([cell for cell in minefield.cells if cell.state == CellState.FLAGGED]),
+            minefield.num_mines,
+            remain_safe,
+            "cell remains" if remain_safe == 1 else "cells remain"
+        )
+
+
 def render_concise(minefield):
     """
     Renders the game board in a concise format optimized for LLM consumption.
@@ -29,18 +44,6 @@ def render_human(minefield):
             yield " ".join(chain(chr(0x2502), iter_cells, chr(0x2502)))
 
         yield chr(0x2514) + chr(0x2500) * (minefield.width * 2 + 1) + chr(0x2518)
-
-        if minefield.state == GameState.WON:
-            yield " Game won"
-        elif minefield.state == GameState.LOST:
-            yield " Game lost"
-        else:
-            remain_safe = len([cell for cell in minefield.cells if not cell.is_mine and cell.state in (CellState.UNKNOWN, CellState.FLAGGED)])
-            yield " {} / {} marked; {} safe {}".format(
-                len([cell for cell in minefield.cells if cell.state == CellState.FLAGGED]),
-                minefield.num_mines,
-                remain_safe,
-                "cell remains" if remain_safe == 1 else "cells remain"
-            )
+        yield " " + render_status(minefield)
 
     return "\n".join(gen_lines())

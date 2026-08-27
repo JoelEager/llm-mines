@@ -1,5 +1,5 @@
 {
-    "width": 8,
-    "height": 8,
-    "mines": 10
+    "width": 5,
+    "height": 5,
+    "mines": 4
 }
