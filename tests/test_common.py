@@ -21,27 +21,40 @@ def test_validate_action_arguments():
     assert "integers" in err
 
 
-def test_process_minesweeper_action():
+def test_process_minesweeper_action(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
-        log_path = f"{tmpdir}/test_proc.log"
+        monkeypatch.setattr(common, "LOGS_DIR", tmpdir)
+        common.set_log_filename("test")
 
-        # Initialize game
-        mf, res = common.process_minesweeper_action(
-            None,
+        res = common.process_minesweeper_action(
             {"x": 0, "y": 0},
             width=5,
             height=5,
-            mines=3,
-            log_file_path=log_path
+            mines=3
         )
-        assert mf is not None
-        assert "Action performed: reveal cell at (0, 0)" in res["content"][0]["text"]
+        assert res["is_error"] is False
+        assert "Action performed: reveal cell at (0, 0)" in res["text"]
 
-        # Action on invalid coords returns error but keeps minefield
-        mf_after, res_err = common.process_minesweeper_action(
-            mf,
+        import tool
+        import bedrock
+
+        mcp_res = tool.format_mcp_result(res)
+        assert mcp_res["content"][0]["text"] == res["text"]
+        assert "type" in mcp_res["content"][0]
+
+        bedrock_res = bedrock.format_bedrock_result(res)
+        assert bedrock_res["content"][0]["text"] == res["text"]
+        assert "type" not in bedrock_res["content"][0]
+
+        # Action on invalid coords returns error
+        res_err = common.process_minesweeper_action(
             {"x": 99, "y": 99},
-            log_file_path=log_path
+            width=5,
+            height=5,
+            mines=3
         )
-        assert mf_after == mf
-        assert res_err.get("isError") is True
+        assert res_err.get("is_error") is True
+        mcp_err = tool.format_mcp_result(res_err)
+        assert mcp_err.get("isError") is True
+        bedrock_err = bedrock.format_bedrock_result(res_err)
+        assert bedrock_err.get("status") == "error"

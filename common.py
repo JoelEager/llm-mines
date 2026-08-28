@@ -65,11 +65,11 @@ def validate_action_arguments(arguments):
 def process_minesweeper_action(arguments, width, height, mines):
     """
     Process a minesweeper action on the given minefield (creating a new one if None or finished).
-    Returns response_dict.
+    Returns result dict with 'text' and 'is_error'.
     """
     x, y, flag, err = validate_action_arguments(arguments)
     if err:
-        return {"content": [{"type": "text", "text": err}], "isError": True}
+        return {"text": err, "is_error": True}
 
     global CURRENT_MINEFIELD
     if CURRENT_MINEFIELD is None or CURRENT_MINEFIELD.state != GameState.IN_PROGRESS:
@@ -83,7 +83,7 @@ def process_minesweeper_action(arguments, width, height, mines):
             CURRENT_MINEFIELD.reveal_cell(x, y)
     except (IndexError, TypeError, ValueError) as e:
         log(f"Error processing action {action_type} at ({x}, {y}): {e}")
-        return {"content": [{"type": "text", "text": f"Error: {e}"}], "isError": True}
+        return {"text": f"Error: {e}", "is_error": True}
 
     action_str = f"{action_type} cell at ({x}, {y})"
     human = render_human(CURRENT_MINEFIELD)
@@ -92,10 +92,6 @@ def process_minesweeper_action(arguments, width, height, mines):
     concise = render_concise(CURRENT_MINEFIELD)
     output_text = f"Action performed: {action_str}\nStatus: {render_status(CURRENT_MINEFIELD)}\nBoard:\n{concise}"
     return {
-        "content": [
-            {
-                "type": "text",
-                "text": output_text
-            }
-        ]
+        "text": output_text,
+        "is_error": False
     }
