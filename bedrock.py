@@ -8,11 +8,24 @@ import boto3
 import common
 
 MODEL_ID = "amazon.nova-pro-v1:0"
-PROMPT = (
-    "Play a game of Minesweeper using the minesweeper_action tool. "
-    "Start by revealing cell (0, 0), then analyze the returned grid board state "
-    "to decide your next moves logically until the game is won or lost."
-)
+PROMPT = """Play a game of Minesweeper using the `minesweeper_action` tool.
+
+Input Format:
+- Call `minesweeper_action(x, y, flag)` where `x` is column (0-indexed from left), `y` is row (0-indexed from top), and `flag` is boolean (False to reveal, True to flag/unflag).
+
+Output Format:
+The tool returns a grid of characters:
+- `?`: Hidden cell.
+- `-`: Revealed safe cell (0 adjacent mines).
+- `1`-`8`: Revealed safe cell with that number of neighboring mines.
+- `F`: Flagged cell.
+- `X`: Exploded mine.
+
+Instructions:
+1. Start by revealing cell (0, 0).
+2. Analyze the grid board state after each action.
+3. Flag any location you determine to be a mine using `flag=True`.
+4. Continue making logical moves until the game is won or lost."""
 WIDTH = 8
 HEIGHT = 8
 MINES = 10
