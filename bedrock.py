@@ -9,15 +9,11 @@ import common
 
 MODEL_ID = "amazon.nova-pro-v1:0"
 # MODEL_ID = "us.meta.llama3-3-70b-instruct-v1:0"
-# MODEL_ID = "mistral.ministral-3-14b-instruct""
-PROMPT = """Play a game of Minesweeper using the `minesweeper_action` tool.
+# MODEL_ID = "mistral.ministral-3-14b-instruct"
+PROMPT = """Play a game of Minesweeper using the provided tool. Your goal is to reveal all non-mine cells without detonating any mines.
 
-Input Format:
-- Call `minesweeper_action(x, y, flag)` where `x` is column (0-indexed from left), `y` is row (0-indexed from top), and `flag` is boolean (False to reveal, True to flag/unflag).
-
-Output Format:
 The tool returns a grid of characters:
-- `?`: Hidden cell.
+- `?`: Unknown cell.
 - `-`: Revealed safe cell (0 adjacent mines).
 - `1`-`8`: Revealed safe cell with that number of neighboring mines.
 - `F`: Flagged cell.
@@ -26,7 +22,7 @@ The tool returns a grid of characters:
 Instructions:
 1. Start by revealing cell (0, 0).
 2. Analyze the grid board state after each action.
-3. Flag any location you determine to be a mine using `flag=True`.
+3. Flag any location you determine to be a mine.
 4. Continue making logical moves until the game is won or lost."""
 WIDTH = 8
 HEIGHT = 8
