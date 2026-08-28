@@ -13,6 +13,21 @@ HEIGHT = 5
 MINES = 4
 
 
+def format_mcp_result(result):
+    """Format result dict for MCP tool call output."""
+    res = {
+        "content": [
+            {
+                "type": "text",
+                "text": result["text"]
+            }
+        ]
+    }
+    if result.get("is_error"):
+        res["isError"] = True
+    return res
+
+
 def handle_request(request):
     req_id = request.get("id")
     method = request.get("method")
@@ -80,7 +95,8 @@ def handle_request(request):
         tool_name = params.get("name")
         arguments = params.get("arguments", {})
         if tool_name == "minesweeper_action":
-            res = common.process_minesweeper_action(arguments, WIDTH, HEIGHT, MINES)
+            raw_res = common.process_minesweeper_action(arguments, WIDTH, HEIGHT, MINES)
+            res = format_mcp_result(raw_res)
             return {
                 "jsonrpc": "2.0",
                 "id": req_id,

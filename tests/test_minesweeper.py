@@ -10,14 +10,14 @@ import common
 def test_utf8_logging(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         monkeypatch.setattr(common, "LOGS_DIR", tmpdir)
+        common.set_log_filename("test")
         human = render_human(random_minefield(5, 5, 5))
-        log_path = os.path.join(tmpdir, "test_log.log")
 
         # Test writing log entry without raising UnicodeEncodeError in non-UTF-8 environments
-        common.log_action(log_path, "reveal cell at (0, 0)", human)
-        assert os.path.exists(log_path)
+        common.log_action("reveal cell at (0, 0)", human)
+        assert os.path.exists(common.LOG_FILE)
 
-        with open(log_path, "r", encoding="utf-8") as f:
+        with open(common.LOG_FILE, "r", encoding="utf-8") as f:
             content = f.read()
             assert "reveal cell at (0, 0)" in content
 
@@ -51,15 +51,19 @@ def test_random_minefield_bounds():
         random_minefield(5, 0, 5)
 
 
-def test_handle_minesweeper_action_validation():
-    res_missing = tool.handle_minesweeper_action({"x": 0})
-    assert res_missing.get("isError") is True
+def test_handle_minesweeper_action_validation(monkeypatch):
+    with tempfile.TemporaryDirectory() as tmpdir:
+        monkeypatch.setattr(common, "LOGS_DIR", tmpdir)
+        common.set_log_filename("test")
 
-    res_invalid_type = tool.handle_minesweeper_action({"x": "abc", "y": 0})
-    assert res_invalid_type.get("isError") is True
+        res_missing = tool.handle_request({"id": 1, "method": "tools/call", "params": {"name": "minesweeper_action", "arguments": {"x": 0}}})["result"]
+        assert res_missing.get("isError") is True
 
-    res_bool = tool.handle_minesweeper_action({"x": True, "y": 0})
-    assert res_bool.get("isError") is True
+        res_invalid_type = tool.handle_request({"id": 1, "method": "tools/call", "params": {"name": "minesweeper_action", "arguments": {"x": "abc", "y": 0}}})["result"]
+        assert res_invalid_type.get("isError") is True
 
-    res_out_of_bounds = tool.handle_minesweeper_action({"x": 999, "y": 999})
-    assert res_out_of_bounds.get("isError") is True
+        res_bool = tool.handle_request({"id": 1, "method": "tools/call", "params": {"name": "minesweeper_action", "arguments": {"x": True, "y": 0}}})["result"]
+        assert res_bool.get("isError") is True
+
+        res_out_of_bounds = tool.handle_request({"id": 1, "method": "tools/call", "params": {"name": "minesweeper_action", "arguments": {"x": 999, "y": 999}}})["result"]
+        assert res_out_of_bounds.get("isError") is True

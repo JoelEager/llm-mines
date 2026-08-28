@@ -45,6 +45,20 @@ MINESWEEPER_TOOL_SPEC = {
 }
 
 
+def format_bedrock_result(result):
+    """Format result dict for AWS Bedrock converse toolResult content."""
+    res = {
+        "content": [
+            {
+                "text": result["text"]
+            }
+        ]
+    }
+    if result.get("is_error"):
+        res["status"] = "error"
+    return res
+
+
 def main():
     bedrock_client = boto3.client("bedrock-runtime")
     messages = [
@@ -88,13 +102,17 @@ def main():
 
             common.log(f"Tool Call: {name}({arguments})")
             if name == "minesweeper_action":
-                res = common.process_minesweeper_action(arguments, WIDTH, HEIGHT, MINES)
-                tool_result_contents.append({
+                raw_res = common.process_minesweeper_action(arguments, WIDTH, HEIGHT, MINES)
+                formatted_res = format_bedrock_result(raw_res)
+                tool_result_entry = {
                     "toolResult": {
                         "toolUseId": tool_use_id,
-                        "content": res["content"]
+                        "content": formatted_res["content"]
                     }
-                })
+                }
+                if "status" in formatted_res:
+                    tool_result_entry["toolResult"]["status"] = formatted_res["status"]
+                tool_result_contents.append(tool_result_entry)
             else:
                 tool_result_contents.append({
                     "toolResult": {

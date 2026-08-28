@@ -1,35 +1,27 @@
+import sys
 import os
 import tempfile
 from unittest.mock import MagicMock
+
+# Mock boto3 before importing bedrock if boto3 is not installed
+if "boto3" not in sys.modules:
+    sys.modules["boto3"] = MagicMock()
+
 import bedrock
 
 
-def test_extract_thinking_trace():
-    blocks = [
-        {"reasoningContent": {"reasoningText": {"text": "Reasoning block 1"}}},
-        {"text": "Normal response text"},
-        {"text": "<thinking>Tag thinking trace</thinking>"}
-    ]
-
-    extracted = bedrock.extract_thinking_trace(blocks)
-    assert "Reasoning block 1" in extracted
-    assert "Tag thinking trace" in extracted
-
-
-def test_run_bedrock_loop(monkeypatch):
+def test_bedrock_main_loop(monkeypatch):
     with tempfile.TemporaryDirectory() as tmpdir:
         monkeypatch.setattr(bedrock.common, "LOGS_DIR", tmpdir)
 
-        # Mock bedrock client responses
-        mock_client = MagicMock()
+        mock_boto3_client = MagicMock()
+        monkeypatch.setattr(bedrock.boto3, "client", lambda service_name: mock_boto3_client)
 
-        # 1st call: returns tool use request
         response_1 = {
             "output": {
                 "message": {
                     "role": "assistant",
                     "content": [
-                        {"reasoningContent": {"reasoningText": {"text": "Analyzing grid..."}}},
                         {
                             "toolUse": {
                                 "toolUseId": "tool_123",
@@ -42,30 +34,30 @@ def test_run_bedrock_loop(monkeypatch):
             }
         }
 
-        # 2nd call: returns final text response
         response_2 = {
             "output": {
                 "message": {
                     "role": "assistant",
                     "content": [
-                        {"text": "Revealed cell (0, 0). Next move..."}
+                        {"text": "Revealed cell (0, 0). Ending run."}
                     ]
                 }
             }
         }
 
-        mock_client.converse.side_effect = [response_1, response_2]
+        mock_boto3_client.converse.side_effect = [response_1, response_2]
 
-        log_path = bedrock.run_bedrock(
-            model_id="custom-bedrock-model",
-            prompt="Test prompt",
-            bedrock_client=mock_client
-        )
+        bedrock.common.set_log_filename("bedrock")
+        bedrock.main()
 
-        assert os.path.exists(log_path)
-        assert os.path.basename(log_path).startswith("bedrock_")
-        with open(log_path, "r", encoding="utf-8") as f:
-            log_content = f.read()
-            assert "Model Name: custom-bedrock-model" in log_content
-            assert "Initial Prompt: Test prompt" in log_content
-            assert "Analyzing grid..." in log_content
+        # Verify second call to converse included tool result formatted without 'type' key
+        assert mock_boto3_client.converse.call_count == 2
+        call_args = mock_boto3_client.converse.call_args_list[1]
+        sent_messages = call_args[1]["messages"]
+        user_tool_result = sent_messages[2]
+        assert user_tool_result["role"] == "user"
+        tool_result = user_tool_result["content"][0]["toolResult"]
+        assert tool_result["toolUseId"] == "tool_123"
+        content_block = tool_result["content"][0]
+        assert "text" in content_block
+        assert "type" not in content_block
