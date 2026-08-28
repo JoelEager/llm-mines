@@ -49,15 +49,29 @@ def validate_action_arguments(arguments):
     if not isinstance(arguments, dict):
         return None, None, False, "Error: Arguments must be a JSON object."
 
-    x = arguments.get("x")
-    y = arguments.get("y")
-    flag = arguments.get("flag", False)
+    x_raw = arguments.get("x")
+    y_raw = arguments.get("y")
+    flag_raw = arguments.get("flag", False)
 
-    if x is None or y is None:
+    if x_raw is None or y_raw is None:
         return None, None, False, "Error: Both 'x' and 'y' parameters are required."
 
-    if isinstance(x, bool) or isinstance(y, bool) or not isinstance(x, int) or not isinstance(y, int):
+    try:
+        x = int(x_raw)
+        y = int(y_raw)
+    except (ValueError, TypeError):
         return None, None, False, "Error: 'x' and 'y' parameters must be integers."
+
+    if isinstance(flag_raw, str):
+        flag_str = flag_raw.strip().lower()
+        if flag_str in ("true", "1"):
+            flag = True
+        elif flag_str in ("false", "0"):
+            flag = False
+        else:
+            return None, None, False, "Error: 'flag' parameter must be a boolean."
+    else:
+        flag = bool(flag_raw)
 
     return x, y, bool(flag), None
 

@@ -33,6 +33,7 @@ PROMPT = """Play a game of Minesweeper using the `minesweeper_action` tool. Your
 WIDTH = 8
 HEIGHT = 8
 MINES = 10
+MAX_TURNS = 100
 
 MINESWEEPER_TOOL_SPEC = {
     "toolSpec": {
@@ -90,7 +91,9 @@ def main():
     common.log (f"Model name: {MODEL_ID}")
     common.log(f"Prompt: {PROMPT}\n")
 
-    while True:
+    turns = 0
+    while turns < MAX_TURNS:
+        turns += 1
         response = bedrock_client.converse(
             modelId=MODEL_ID, 
             messages=messages, 
@@ -99,9 +102,12 @@ def main():
             toolConfig={"tools": [MINESWEEPER_TOOL_SPEC]}
         )
         output_message = response["output"]["message"]
-        messages.append(output_message)
-
         content_blocks = output_message.get("content", [])
+        if not content_blocks:
+            output_message["content"] = [{"text": "(No output content provided by model)"}]
+            content_blocks = output_message["content"]
+
+        messages.append(output_message)
         tool_requests = []
         for block in content_blocks:
             common.log(f"Model Output Block: {block}")
@@ -109,8 +115,14 @@ def main():
                 tool_requests.append(block)
 
         if not tool_requests:
-            print("No tool requests found in model output. Ending run.")
-            break
+            common.log("No native toolUse blocks found in model output. Prompting model to use native tool calling.")
+            messages.append({
+                "role": "user",
+                "content": [{
+                    "text": "Please invoke the minesweeper_action tool using native tool calls rather than outputting text/JSON."
+                }]
+            })
+            continue
 
         tool_result_contents = []
         for tr in tool_requests:
@@ -145,6 +157,11 @@ def main():
             "role": "user",
             "content": tool_result_contents
         })
+
+        if common.CURRENT_MINEFIELD and common.CURRENT_MINEFIELD.state in (common.GameState.WON, common.GameState.LOST):
+            common.log(f"Game finished with status: {common.CURRENT_MINEFIELD.state.name}. Ending run.")
+            print(f"Game finished with status: {common.CURRENT_MINEFIELD.state.name}.")
+            break
 
 
 

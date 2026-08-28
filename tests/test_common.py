@@ -11,14 +11,29 @@ def test_validate_action_arguments():
     x, y, flag, err = common.validate_action_arguments({"x": 0, "y": 0})
     assert (x, y, flag, err) == (0, 0, False, None)
 
+    # Test string parameter type coercion
+    x, y, flag, err = common.validate_action_arguments({"x": "0", "y": "3", "flag": "false"})
+    assert (x, y, flag, err) == (0, 3, False, None)
+
+    x, y, flag, err = common.validate_action_arguments({"x": "4", "y": "5", "flag": "True"})
+    assert (x, y, flag, err) == (4, 5, True, None)
+
     _, _, _, err = common.validate_action_arguments("invalid")
     assert "JSON object" in err
 
     _, _, _, err = common.validate_action_arguments({"x": 1})
     assert "required" in err
 
-    _, _, _, err = common.validate_action_arguments({"x": True, "y": 1})
+    # Note: True/False cast to int 1/0
+    x, y, flag, err = common.validate_action_arguments({"x": True, "y": 1})
+    assert (x, y, flag, err) == (1, 1, False, None)
+    assert isinstance(flag, bool)
+
+    _, _, _, err = common.validate_action_arguments({"x": "invalid", "y": 1})
     assert "integers" in err
+
+    _, _, _, err = common.validate_action_arguments({"x": 0, "y": 0, "flag": "invalid_bool"})
+    assert "boolean" in err
 
 
 def test_process_minesweeper_action(monkeypatch):

@@ -62,8 +62,9 @@ def test_handle_minesweeper_action_validation(monkeypatch):
         res_invalid_type = tool.handle_request({"id": 1, "method": "tools/call", "params": {"name": "minesweeper_action", "arguments": {"x": "abc", "y": 0}}})["result"]
         assert res_invalid_type.get("isError") is True
 
+        # True is coerced to integer 1
         res_bool = tool.handle_request({"id": 1, "method": "tools/call", "params": {"name": "minesweeper_action", "arguments": {"x": True, "y": 0}}})["result"]
-        assert res_bool.get("isError") is True
+        assert res_bool.get("isError") is None or res_bool.get("isError") is False
 
         res_out_of_bounds = tool.handle_request({"id": 1, "method": "tools/call", "params": {"name": "minesweeper_action", "arguments": {"x": 999, "y": 999}}})["result"]
         assert res_out_of_bounds.get("isError") is True
