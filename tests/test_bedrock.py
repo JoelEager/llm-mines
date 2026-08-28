@@ -61,3 +61,13 @@ def test_bedrock_main_loop(monkeypatch):
         content_block = tool_result["content"][0]
         assert "text" in content_block
         assert "type" not in content_block
+
+
+def test_bedrock_prompt_content():
+    assert "Input Format:" in bedrock.PROMPT
+    assert "Output Format:" in bedrock.PROMPT
+    assert "flag" in bedrock.PROMPT
+    assert "0-indexed" in bedrock.PROMPT
+    assert "`?`: Hidden cell." in bedrock.PROMPT
+    assert "`F`: Flagged cell." in bedrock.PROMPT
+    assert "Flag any location you determine to be a mine" in bedrock.PROMPT
