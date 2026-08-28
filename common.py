@@ -17,7 +17,7 @@ LOG_FILE = None
 def set_log_filename(prefix):
     """Generate a log filename given a prefix."""
     makedirs(LOGS_DIR, exist_ok=True)
-    now_str = datetime.now().strftime("%Y-%m-%d_%H-%M")
+    now_str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     global LOG_FILE
     LOG_FILE = path.join(LOGS_DIR, f"{prefix}_{now_str}.log")
 

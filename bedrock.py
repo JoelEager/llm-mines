@@ -8,6 +8,8 @@ import boto3
 import common
 
 MODEL_ID = "amazon.nova-pro-v1:0"
+# MODEL_ID = "us.meta.llama3-3-70b-instruct-v1:0"
+# MODEL_ID = "mistral.ministral-3-14b-instruct""
 PROMPT = (
     "Play a game of Minesweeper using the minesweeper_action tool. "
     "Start by revealing cell (0, 0), then analyze the returned grid board state "
