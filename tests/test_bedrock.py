@@ -54,6 +54,8 @@ def test_bedrock_main_loop(monkeypatch):
         assert mock_boto3_client.converse.call_count == 2
         call_args = mock_boto3_client.converse.call_args_list[1]
         sent_messages = call_args[1]["messages"]
+        assert call_args[1]["system"] == [{"text": bedrock.SYSTEM_PROMPT}]
+        assert call_args[1]["inferenceConfig"] == {"temperature": 0.0}
         user_tool_result = sent_messages[2]
         assert user_tool_result["role"] == "user"
         tool_result = user_tool_result["content"][0]["toolResult"]
@@ -64,10 +66,11 @@ def test_bedrock_main_loop(monkeypatch):
 
 
 def test_bedrock_prompt_content():
-    assert "Input Format:" in bedrock.PROMPT
-    assert "Output Format:" in bedrock.PROMPT
+    assert "Board Format & Symbols" in bedrock.PROMPT
+    assert "Strategy Rules" in bedrock.PROMPT
     assert "flag" in bedrock.PROMPT
     assert "0-indexed" in bedrock.PROMPT
-    assert "`?`: Hidden cell." in bedrock.PROMPT
-    assert "`F`: Flagged cell." in bedrock.PROMPT
-    assert "Flag any location you determine to be a mine" in bedrock.PROMPT
+    assert "`?`: Unknown / hidden cell." in bedrock.PROMPT
+    assert "`F`: Flagged cell" in bedrock.PROMPT
+    assert "Always flag known mines before revealing safe cells" in bedrock.PROMPT
+    assert "Think step-by-step" in bedrock.SYSTEM_PROMPT

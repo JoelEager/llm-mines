@@ -10,19 +10,25 @@ import common
 MODEL_ID = "amazon.nova-pro-v1:0"
 # MODEL_ID = "us.meta.llama3-3-70b-instruct-v1:0"
 # MODEL_ID = "mistral.ministral-3-14b-instruct"
-PROMPT = """Play a game of Minesweeper using the provided tool. Your goal is to reveal all non-mine cells without detonating any mines.
 
-The tool returns a grid of characters:
-- `?`: Unknown cell.
+SYSTEM_PROMPT = "You are an expert Minesweeper solver. Think step-by-step to analyze the board state and logically deduce guaranteed safe cells to reveal or mine cells to flag before taking an action."
+
+PROMPT = """Play a game of Minesweeper using the `minesweeper_action` tool. Your goal is to reveal all non-mine cells without detonating any mines.
+
+### Board Format & Symbols
+- Grid coordinates are 0-indexed: `x` is column (0 is left-most), `y` is row (0 is top-most).
+- `?`: Unknown / hidden cell.
 - `-`: Revealed safe cell (0 adjacent mines).
-- `1`-`8`: Revealed safe cell with that number of neighboring mines.
-- `F`: Flagged cell.
+- `1`-`8`: Revealed safe cell with that number of neighboring mines (in surrounding 8 cells).
+- `F`: Flagged cell (marked as a mine).
 - `X`: Exploded mine.
 
-Instructions:
-1. Start by revealing cell (0, 0).
-2. Analyze the grid board state after each action.
-3. Flag any location you determine to be a mine.
+### Strategy Rules
+1. Start by revealing cell (x=0, y=0).
+2. For any numbered cell (`1`-`8`), check its 8 surrounding neighbors:
+   - If (hidden + flagged neighbors) equals cell number: all hidden neighbors are mines -> flag them (`flag=True`).
+   - If (flagged neighbors) equals cell number: all hidden neighbors are safe -> reveal them (`flag=False`).
+3. Always flag known mines before revealing safe cells. If no guaranteed move exists, pick the safest candidate.
 4. Continue making logical moves until the game is won or lost."""
 WIDTH = 8
 HEIGHT = 8
@@ -88,6 +94,8 @@ def main():
         response = bedrock_client.converse(
             modelId=MODEL_ID, 
             messages=messages, 
+            system=[{"text": SYSTEM_PROMPT}],
+            inferenceConfig={"temperature": 0.0},
             toolConfig={"tools": [MINESWEEPER_TOOL_SPEC]}
         )
         output_message = response["output"]["message"]
