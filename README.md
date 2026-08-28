@@ -1,9 +1,9 @@
-# MCP Mines
-A Model Context Protocol (MCP) tool interface for playing Minesweeper with LLMs. Models can interact with the game via the `minesweeper_action` tool to reveal or flag cells. Based on [terminal-mines](https://github.com/JoelEager/terminal-mines) and modified using [Google Jules](https://jules.google.com/).
+# LLM Mines
+An experiment to see how large language models perform at playing Minesweeper. The model interacts with the game via the `minesweeper_action` tool to reveal or flag cells. Based on [terminal-mines](https://github.com/JoelEager/terminal-mines) and modified using [Google Jules](https://jules.google.com/).
 
 This project includes two implementations:
-- **Local MCP tool**: Exposes the tool over stdio for use in LM Studio.
-- **AWS Bedrock harness**: Runs the game using the configured AWS Bedrock model.
+- **Local MCP tool**: Exposes the tool via Model Context Protocol over stdio for use in LM Studio.
+- **AWS Bedrock harness**: Implements a gameplay loop for AWS Bedrock models.
 
 Active game state is held in memory for the duration of the Python process. If no game is active or a game ends, a new game starts automatically on the next action. Timestamped log files in `logs/` record all actions for the process. Each script is configured separately using constants at the top of the file.
 
@@ -56,7 +56,7 @@ The `minesweeper_action` tool returns a text grid representing the board.
 ```
 
 ### Bedrock
-Make sure your AWS credentials are set up (e.g. via AWS CLI or environment variables), then run:
+Make sure your AWS credentials are set up (e.g. via AWS CLI or environment variables), install boto3, and then run:
 ```bash
 python3 bedrock.py
 ```
