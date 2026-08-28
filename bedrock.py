@@ -104,8 +104,9 @@ def main():
         output_message = response["output"]["message"]
         content_blocks = output_message.get("content", [])
         if not content_blocks:
-            output_message["content"] = [{"text": "(No output content provided by model)"}]
-            content_blocks = output_message["content"]
+            common.log("(No output content provided by model)")
+            print("No output content provided by model. Ending run.")
+            break
 
         messages.append(output_message)
         tool_requests = []
