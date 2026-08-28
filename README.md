@@ -60,3 +60,5 @@ Make sure your AWS credentials are set up (e.g. via AWS CLI or environment varia
 ```bash
 python3 bedrock.py
 ```
+
+All of the bedrock models I've tried are pretty incompetent and do worse than the above approach.

@@ -7,9 +7,9 @@ Runs a game loop using AWS Bedrock converse API with thinking trace extraction a
 import boto3
 import common
 
-MODEL_ID = "amazon.nova-pro-v1:0"
+# MODEL_ID = "amazon.nova-pro-v1:0"
 # MODEL_ID = "us.meta.llama3-3-70b-instruct-v1:0"
-# MODEL_ID = "mistral.ministral-3-14b-instruct"
+MODEL_ID = "mistral.ministral-3-14b-instruct"
 
 SYSTEM_PROMPT = "You are an expert Minesweeper solver. Think step-by-step to analyze the board state and logically deduce guaranteed safe cells to reveal or mine cells to flag before taking an action."
 
@@ -30,9 +30,9 @@ PROMPT = """Play a game of Minesweeper using the `minesweeper_action` tool. Your
    - If (flagged neighbors) equals cell number: all hidden neighbors are safe -> reveal them (`flag=False`).
 3. Always flag known mines before revealing safe cells. If no guaranteed move exists, pick the safest candidate.
 4. Continue making logical moves until the game is won or lost."""
-WIDTH = 8
-HEIGHT = 8
-MINES = 10
+WIDTH = 5
+HEIGHT = 5
+MINES = 4
 MAX_TURNS = 100
 
 MINESWEEPER_TOOL_SPEC = {
