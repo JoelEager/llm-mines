@@ -1,11 +1,16 @@
 # LLM Mines
-An experiment to see how large language models perform at playing Minesweeper. The model interacts with the game via the `minesweeper_action` tool to reveal or flag cells. Based on [terminal-mines](https://github.com/JoelEager/terminal-mines) and modified using [Google Jules](https://jules.google.com/).
+A partly vibe coded experiment to see how large language models perform at playing Minesweeper. The model interacts with the game via the `minesweeper_action` tool to reveal or flag cells. Based on [terminal-mines](https://github.com/JoelEager/terminal-mines) and modified using [Google Jules](https://jules.google.com/).
 
 This project includes two implementations:
 - **Local MCP tool**: Exposes the tool via Model Context Protocol over stdio for use in LM Studio.
 - **AWS Bedrock harness**: Implements a gameplay loop for AWS Bedrock models.
 
 Active game state is held in memory for the duration of the Python process. If no game is active or a game ends, a new game starts automatically on the next action. Timestamped log files in `logs/` record all actions for the process. Each script is configured separately using constants at the top of the file.
+
+## Findings
+Turns out they're garbage at it. No amount of prompt tuning could get them to do more than a few logical moves and most models couldn't even solve a 5x5 board with 4 mines. At least the thinking traces are funny.
+
+I had the most success with the `gemma-4-12b-qat` model using the strategy detailed in the LM Studio section below. (It at least was able to beat that board configuration most of the time. Larger boards did much worse though.) The AWS Bedrock models I tried (`amazon.nova-pro-v1:0`, `us.meta.llama3-3-70b-instruct-v1:0`, and `mistral.ministral-3-14b-instruct`) all performed much worse, likely because I didn't have a code sandbox tool to give them.
 
 ## Usage
 ### LM Studio
@@ -61,4 +66,4 @@ Make sure your AWS credentials are set up (e.g. via AWS CLI or environment varia
 python3 bedrock.py
 ```
 
-All of the bedrock models I've tried are pretty incompetent and do worse than the above approach.
+That script includes the prompt and gameplay loop. See the implementation for details.
